@@ -1,0 +1,7 @@
+---
+
+- src: jebovic.supervisor
+  name: supervisor
+
+- src: jebovic.nodejs
+  name: nodejs

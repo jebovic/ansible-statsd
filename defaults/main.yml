@@ -1,0 +1,13 @@
+---
+
+# statsd install configuration
+statsd_dep_packages:
+  - git
+statsd_github_repo: https://github.com/etsy/statsd
+statsd_version: HEAD
+
+# statsd basic configuration
+statsd_user: statsd
+statsd_user_group: statsd
+statsd_install_path: /opt/statsd
+statsd_config_path: /etc/statsd

@@ -1,0 +1,56 @@
+---
+
+- name: install apt packages
+  apt:
+    name:  "{{ item }}"
+    state:              latest
+    install_recommends: false
+    update_cache:       yes
+    cache_valid_time:   300
+  with_items: "{{ statsd_dep_packages }}"
+
+- name: clone github repo
+  git:
+    repo: "{{ statsd_github_repo }}"
+    dest: "{{ statsd_install_path }}"
+    version: "{{ statsd_version | default('HEAD') }}"
+  notify:
+    - restart statsd
+
+- name: "ensure usergroup '{{ statsd_user_group }}' exists"
+  group:
+    name: "{{ statsd_user_group }}"
+    state: present
+    system: yes
+  tags: statsd_config
+
+- name: "ensure user '{{ statsd_user }}' exists"
+  user:
+    name: "{{ statsd_user }}"
+    group: "{{ statsd_user_group }}"
+    state: present
+    createhome: no
+    system: yes
+  tags: statsd_config
+
+- name: ensure config dir exists
+  file:
+    path: "{{ statsd_config_path }}"
+    state: directory
+    owner: "{{ statsd_user }}"
+    group: "{{ statsd_user_group }}"
+    mode: 0744
+  tags: statsd_config
+
+- name: config
+  template:
+    src: "{{ item }}.j2"
+    dest: "{{ statsd_config_path }}/{{ item }}"
+    owner: "{{ statsd_user }}"
+    group: "{{ statsd_user_group }}"
+    mode: 0744
+  with_items:
+    - config.js
+  notify:
+    - restart statsd
+  tags: statsd_config

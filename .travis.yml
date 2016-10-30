@@ -1,0 +1,44 @@
+env:
+  - distro: debianjessie
+    init: "/sbin/init"
+    run_opts: ""
+    playbook: test.yml
+  - distro: ubuntutrusty
+    init: "/sbin/init"
+    run_opts: ""
+    playbook: test.yml
+  - distro: ubuntuxenial
+    init: "/sbin/init"
+    run_opts: ""
+    playbook: test.yml
+
+services:
+  - docker
+
+before_install:
+  - docker pull jebovic/${distro}-ansible:latest
+
+script:
+  # run container
+  - container_id=$(mktemp)
+  - docker run --detach --privileged --volume=/sys/fs/cgroup:/sys/fs/cgroup:ro --volume="${PWD}":/etc/ansible/roles/role_under_test:ro ${run_opts} jebovic/${distro}-ansible:latest "${init}" > "${container_id}"
+  # Install dependencies.
+  - docker exec "$(cat ${container_id})" ansible-galaxy install -r /etc/ansible/roles/role_under_test/tests/requirements.yml
+  # syntax checking
+  - docker exec --tty "$(cat ${container_id})" env TERM=xterm ansible-playbook /etc/ansible/roles/role_under_test/tests/${playbook} --syntax-check
+  # test role
+  - docker exec "$(cat ${container_id})" env TERM=xterm ansible-playbook /etc/ansible/roles/role_under_test/tests/${playbook}
+  # test role idempotence
+  - idempotence=$(mktemp)
+  - docker exec "$(cat ${container_id})" ansible-playbook /etc/ansible/roles/role_under_test/tests/${playbook} | tee -a ${idempotence}
+  - >
+    tail ${idempotence}
+    | grep -q 'changed=0.*failed=0'
+    && (echo 'Idempotence test: pass' && exit 0)
+    || (echo 'Idempotence test: fail' && exit 1)
+  # test role tasks
+
+notifications:
+  webhooks: https://galaxy.ansible.com/api/v1/notifications/
+  slack:
+    secure: Mn1dkcZJJoVIlsomn1nqp1T0Tvc9DPftqVT7kVweq/s+0ms3J/xFIoBNaJKw/ArVcenrpZJto2xvWyOKLTr833eDPNyobrN2Xerfm++PgYaKJGDX006GAEwFL8ywihn7qyZfNRvCQ0mrhTUX+3cUQCR8LUyitgAeeuFFbOriHNTW9AHN3zkf/FcgIGlKQP3lxDsi10v0ezy+ab0T/czTlCsxYF0W1R/0U//beYXXKhYd0j/fRtjf1poPwivk19AQB3UMuxbKKjekS5Ck1qXeSwFV5HfQGQKpW3E3TXiW7AVpzxzIBl+HTzRbHn+wjRHlyC8Djlw974nTFsohQ5hnOjlnlQ+r3ukvIAf+RUd3vf0kPJcjkKGRyCsRUh7Rr7nsvEsmAN8JHxNq+MqyUNAQFdTSQ15Z1+/OyRlKacz/+UFjNhCMu8AyUKML+C4AEgvzclVoAgVz2UMPj+kMSjHWIdY2Ra5OkeExVaeK700oxCsQQR20j06qkv1k/ScVwTHli0QMEa8W7z+QtB5NF5CRD6cfBazsLqULPvzmjp7sP1SR4AuTfTKffsOnzRdt0e50AtDEaEjzETW0qEVmmLne+Jm1vLl01XMOK4ZDJIcnirL+duY/4JEWU/81frSeAIUnMsxY8c+mvHxm7WtmDPPpC8c2VcDatENDzB/QWR+YZjI=

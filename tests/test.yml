@@ -6,6 +6,7 @@
     - role_under_test
     - supervisor
   vars:
+    supervisor_pip_packages: []
     supervisor_programs:
       statsd:
         command: "/usr/bin/nodejs stats.js {{ statsd_config_path }}/config.js"
